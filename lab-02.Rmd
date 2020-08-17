@@ -24,7 +24,7 @@ pop_ca2019 = pop %>%
 
 cases = covid %>%
   filter(state %in% c("California")) %>%
-  group_by(state) %>%
+  group_by(county) %>%
   mutate(newCases = cases - lag(cases)) %>%
   ungroup() %>%
   filter(date == max(date))
@@ -178,7 +178,8 @@ local_data1 = covid %>%
 
 ggplot(local_data1, aes(x = Y, y = X)) +
   borders("state", fill = "gray90", colour = "white") +
-  geom_point(aes(color = m, size = totalcase)) 
+  geom_point(aes(color = m, size = totalcase)) +
+  labs(title = "CIVID-19 Pandemic Trending ", x = "Longitude", y = "Latitude")
   
 
 
@@ -208,6 +209,6 @@ ggplot(local_data1, aes(x = Y, y = X)) +
 
 
 
-
+From the data trending, the outbreak started near west, with few cases, but suddenly transferred to the east with numerous cases in the west from March to May, caused by large population flow in big cities such as New York. With the reinforcement of control in the east area, and the ignorance of the disease in the west, the western cases increased and the weighted mean center slowly moved to the west again from June to August. From August, the total cases started to decrease.
 
 
