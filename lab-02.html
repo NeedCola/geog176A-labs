@@ -584,7 +584,7 @@ state_daysdata = pop_data2 %&gt;%
 <pre class="r"><code>Numofcounty = length(safe_county$county)
 Numofnewcases = format(max(state_daysdata$cases) - min(state_daysdata$cases))
 Numofcases = format(max(state_daysdata$cases))</code></pre>
-<p>As the data showing on above, in the last <strong>14</strong> days, the total number of new cases is <strong>621981</strong>, the total number of new cases is <strong>106044</strong>, and the total number of safe county is <strong>13</strong></p>
+<p>As the data showing on above, in California’s last <strong>14</strong> days, the total number of cases is <strong>621981</strong>, the total number of new cases is <strong>106044</strong>, and the total number of safe county is <strong>13</strong></p>
 <pre class="r"><code>covid %&gt;%
   filter(state %in% c(&quot;New York&quot;, &quot;California&quot;, &quot;Louisiana&quot;, &quot;Florida&quot;)) %&gt;%
   group_by(state, date) %&gt;%
