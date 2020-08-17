@@ -96,7 +96,7 @@ Numofcases = format(max(state_daysdata$cases))
 
 
 
-As the data showing on above, in California's last **14** days, the total number of cases is **`r Numofcases`**,  the total number of new cases is **`r Numofnewcases`**, and the total number of safe county is **`r Numofcounty`**
+As the data showing on above, in California's last **14** days, the total number of cases is **`r Numofcases`**,  the total number of new cases is **`r Numofnewcases`**, and the total number of safe county is **`r Numofcounty`**.
 
 
 ```{r}

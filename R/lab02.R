@@ -1,15 +1,7 @@
----
-  # Chi Zhang
-  # 08/12/2020
-  # COVID-19 Pandemic
-  ---
-
-
 library(tidyverse)
 library(knitr)
 library(readxl)
 library(zoo)
-
 
 
 covid = read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv')
@@ -90,9 +82,7 @@ Numofnewcases = format(max(state_daysdata$cases) - min(state_daysdata$cases))
 Numofcases = format(max(state_daysdata$cases))
 
 
-
-As the data showing on above, in the last 14 days, the total number of new cases is `r Numofcases`,  the total number of new cases is `r Numofnewcases`, and the total number of safe county is `r Numofcounty`
-
+As the data showing on above, in California's last **14** days, the total number of cases is **`r Numofcases`**,  the total number of new cases is **`r Numofnewcases`**, and the total number of safe county is **`r Numofcounty`**.
 
 
 covid %>%
@@ -139,13 +129,7 @@ ggplot(state_pop, aes(x = date)) +
 
 
 
-
-
-
-
-
-With the date of population, the graph is more sensitive to the local condition of the pandemic. Because some states' population is small such as Louisiana, the basic infected number is too small to evaluating and we cannot analyze the changes from the cases itself. Cases per capita solves the problem when we try to monitor local pandemic changes. In addition, cases per capita also can help us observe the control of the infection locally. But sometimes it is biased. The total number of the cases matters when we try to define the disease's pandemic condition in specific area. Analysis of both of them is better way to monitor the pandemic.
-
+With the date of population, the graph is more sensitive to the local condition of the pandemic. Because some states' population is small such as Louisiana, the basic infected number is too small to evaluate and we cannot analyze the changes from the cases itself. Cases per capita solves the problem when we try to monitor local pandemic changes. In addition, cases per capita also can help us observe the control of the infection locally. But sometimes it is biased. The total number of the cases matters when we try to define the disease's pandemic condition in specific area. Analysis of both of them is better way to monitor the pandemic.
 
 
 
@@ -155,32 +139,39 @@ local = na.omit(readr::read_csv("data/county-centroids.csv"))  %>%
 
 local_data1 = covid %>%
   group_by(date, county, fips) %>%
-  #summarize(totalcases = sum(cases)) %>%
   ungroup() %>%
   left_join(local, by = "fips") %>%
   select(date, county = county.x, fips, cases, LAT, LON) %>%
-  mutate(m = format(date, "%m")) %>%
-  group_by(m) %>%
+  mutate(Month = format(date, "%m")) %>%
+  group_by(Month) %>%
   summarise(X = sum(LAT * cases, na.rm = TRUE) / sum(cases, na.rm = TRUE),
             Y = sum(LON * cases, na.rm = TRUE) / sum(cases, na.rm = TRUE),
-            totalcase = sum(cases, na.rm =TRUE ))
+            Totalcases = sum(cases, na.rm =TRUE ))
+
 
 
 
 
 ggplot(local_data1, aes(x = Y, y = X)) +
   borders("state", fill = "gray90", colour = "white") +
-  geom_point(aes(color = m, size = totalcase)) +
-  labs(title = "CIVID-19 Pandemic Trending ", x = "Longitude", y = "Latitude")
-
-
-
-
-
-
+  geom_point(aes(color = Month, size = Totalcases)) +
+  labs(title = "CIVID-19 Pandemic Trending ",
+       x = "Longitude",
+       y = "Latitude",
+       caption = "based on https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv",
+       subtitle = 'Data Source: NY-Times',
+       color = "Month") +
+  theme_gray()
 
 
 
 
 From the data trending, the outbreak started near west, with few cases, but suddenly transferred to the east with numerous cases in the west from March to May, caused by large population flow in big cities such as New York. With the reinforcement of control in the east area, and the ignorance of the disease in the west, the western cases increased and the weighted mean center slowly moved to the west again from June to August. From August, the total cases started to decrease.
+
+
+
+
+
+
+
 
