@@ -179,7 +179,7 @@ local_data1 = covid %>%
 ggplot(local_data1, aes(x = Y, y = X)) +
   borders("state", fill = "gray90", colour = "white") +
   geom_point(aes(color = Month, size = Totalcases)) +
-  labs(title = "CIVID-19 Pandemic Trending ", 
+  labs(title = "COVID-19 Pandemic Trending ", 
        x = "Longitude", 
        y = "Latitude",
        caption = "based on https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv",
