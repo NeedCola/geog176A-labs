@@ -215,6 +215,6 @@ ggplot(local_data1, aes(x = Y, y = X)) +
 
 
 
-From the data trending, the outbreak started near west, with few cases, but suddenly transferred to the east with numerous cases from March to May, caused by outbreak in Puerto Rico and large population flow in big cities such as New York. With the reinforcement of control in the east area, and the ignorance of the disease in the west, the western cases increased and the weighted mean center slowly moved to the west again from June to August. From August, the total cases started to decrease.
+From the data trending, the outbreak started near west, with few cases, but suddenly transferred to the east with numerous cases from March to May, caused by outbreak in Puerto Rico and large population flow in big cities such as New York. With the reinforcement of control in the east area, and the ignorance of the disease in the west, the western cases increased and the weighted mean center slowly moved to the west again from June to August. From August, the total number of cases started to decrease.
 
 
