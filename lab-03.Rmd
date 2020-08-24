@@ -126,7 +126,7 @@ knitr::kable(can_cities,
 ```
 
 
-```{r}
+```{r,warning=FALSE}
 country_b = countryboundary %>%
   st_combine() %>%
   st_cast("MULTILINESTRING")
@@ -254,7 +254,7 @@ numberofcity = length(danger_zone$city)
 
 The number of city in this 100 mile zone is `r numberofcity`
 
-```{r}
+```{r,warning=FALSE}
 stat_zone = danger_zone %>%  
   mutate(number = numberofcity) %>%
   select(number, danger_pop, totalpop) %>%
