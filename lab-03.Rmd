@@ -1,0 +1,336 @@
+---
+# Chi Zhang
+# 08/19/2020
+# Projections, Distance, and Mapping
+---
+
+```{r}
+library(tidyverse)
+library(sf)
+library(units)
+
+library(USAboundaries)
+library(rnaturalearthdata)
+
+library(gghighlight)
+library(ggrepel)
+library(knitr)
+
+```
+
+
+
+```{r}
+eqdc = '+proj=eqdc +lat_0=40 +lon_0=-96 +lat_1=20 +lat_2=60 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs'
+
+region = data.frame(region = state.region, state_name = state.name)
+
+stateboundary = USAboundaries::us_states() %>%
+  filter(!name %in% c("Alaska", "Hawaii", "Puerto Rico"))
+
+  
+  
+
+countryboundary = rnaturalearthdata::countries110 %>%
+  st_as_sf() %>%
+  filter(name %in% c("Mexico", "United States", "Canada"))
+  
+
+uscities = readr::read_csv("data/uscities.csv") %>%
+  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
+  st_filter(stateboundary, .predicate = st_intersects)
+
+stateboundary = st_transform(stateboundary, eqdc)
+countryboundary = st_transform(countryboundary, eqdc)
+uscities = st_transform(uscities, eqdc)
+
+
+```
+
+```{r}
+border = st_union(stateboundary) %>%
+  st_cast("MULTILINESTRING")
+
+border_dis = uscities %>%
+  mutate(dist_to_border = st_distance(uscities, border),
+         dist_to_border = units::set_units(dist_to_border, "km"), 
+         dist_to_border = units::drop_units(dist_to_border)) 
+  
+border_cities = border_dis %>%
+  slice_max(dist_to_border, n = 5) %>%
+  st_drop_geometry() %>%
+  select(city, state = state_name, distance = dist_to_border) 
+  
+
+knitr::kable(border_cities,
+             caption = "Farthest Cities to Border",
+             col.names = c("City Name", "State", "Distance"))
+
+
+state_b = st_combine(stateboundary) %>%
+  st_cast("MULTILINESTRING")
+
+state_dis = uscities %>%
+  mutate(dist_to_state = st_distance(uscities, state_b),
+         dist_to_state = units::set_units(dist_to_state, "km"),
+         dist_to_state = units::drop_units(dist_to_state))
+  
+state_cities = state_dis %>%
+  slice_max(dist_to_state, n = 5) %>%
+  st_drop_geometry() %>%
+  select(city, state = state_name, distance = dist_to_state)
+
+knitr::kable(state_cities,
+             caption = "Farthest Cities to the States",
+             col.names = c("City Name", "State", "Distance"))
+
+mex_b = countryboundary %>%
+  filter(name %in% c("Mexico")) %>%
+  st_cast("MULTILINESTRING")
+
+
+MEX_dis = uscities %>%
+  mutate(dist_to_mex = st_distance(uscities, mex_b),
+         dist_to_mex = units::set_units(dist_to_mex, "km"),
+         dist_to_mex = units::drop_units(dist_to_mex))
+
+mex_cities = MEX_dis %>%
+  slice_max(dist_to_mex, n = 5) %>%
+  st_drop_geometry() %>%
+  select(city, state = state_name, distance = dist_to_mex)
+
+knitr::kable(mex_cities,
+             caption = "Farthest Cities to Mexico",
+             col.names = c("City Name", "State", "Distance"))
+
+can_b = countryboundary %>%
+  filter(name %in% c("Canada")) %>%
+  st_cast("MULTILINESTRING")
+
+CAN_dis = uscities %>%
+  mutate(dist_to_can = st_distance(uscities, can_b),
+         dist_to_can = units::set_units(dist_to_can, "km"),
+         dist_to_can = units::drop_units(dist_to_can))
+
+can_cities = CAN_dis %>%
+  slice_max(dist_to_can, n = 5) %>%
+  st_drop_geometry() %>%
+  select(city, state = state_name, distance = dist_to_can)
+
+knitr::kable(can_cities,
+             caption = "Farthest Cities to Canada",
+             col.names = c("City Name", "State", "Distance"))
+
+
+```
+
+
+```{r}
+country_b = countryboundary %>%
+  st_combine() %>%
+  st_cast("MULTILINESTRING")
+
+
+
+large_cities = uscities %>%
+  st_filter(stateboundary, .predicate = st_intersects) %>%
+  slice_max(population, n = 10) 
+
+
+
+
+ggplot() +
+  geom_sf(data = country_b, aes(), size = .1) +
+  geom_sf(data = state_b, aes(), lty = 2) +
+  geom_sf(data = border, color = "yellow") +
+  geom_sf(data = large_cities, color = "navy") +
+  ggrepel::geom_label_repel(data = large_cities,
+                            aes(label = city, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 3) +
+  labs(title = "Large Cities in the United States", 
+       x = "Longitude", 
+       y = "Latitude",
+       caption = "based on https://simplemaps.com/data/us-cities") +
+  theme_gray()
+ 
+
+border_cities1 = border_dis %>%
+  slice_max(dist_to_border, n = 5)
+
+ggplot() +
+  geom_sf(data = border, aes()) +
+  geom_sf(data =border_dis , aes(col = dist_to_border)) +
+  geom_sf(data = border_cities1, color = "yellow") +
+  ggrepel::geom_label_repel(data = border_cities1,
+                            aes(label = city, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 3) +
+  labs(title = "Cities Farthest to the Border", 
+       x = "Longitude", 
+       y = "Latitude",
+       caption = "based on https://simplemaps.com/data/us-cities") +
+  theme_gray()
+
+
+state_cities1 = state_dis %>%
+  slice_max(dist_to_state, n = 5)
+
+ggplot() +
+  geom_sf(data = state_b, aes()) +
+  geom_sf(data =state_dis , aes(col = dist_to_state)) +
+  geom_sf(data = state_cities1, color = "yellow") +
+  ggrepel::geom_label_repel(data = state_cities1,
+                            aes(label = city, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 3) +
+  labs(title = "Cities Farthest to the State Boundary", 
+       x = "Longitude", 
+       y = "Latitude",
+       caption = "based on https://simplemaps.com/data/us-cities") +
+  theme_gray()
+
+M_cities =  MEX_dis %>%
+  filter(dist_to_mex <= 100) %>%
+  st_drop_geometry() %>%
+  select(id)
+
+C_cities = CAN_dis %>%
+  filter(dist_to_can <= 100) %>%
+  st_drop_geometry() %>%
+  select(id)
+
+city.name = full_join(M_cities, C_cities) %>%
+  select(id.x = id)
+
+
+MC_cities = st_join(MEX_dis, CAN_dis, by = "city") %>%
+  right_join(city.name, by = "id.x") 
+  
+
+MC_l_cities = MC_cities %>%
+  slice_max(population.x, n = 5)
+
+ggplot() +
+  geom_sf(data = state_b) +
+  geom_sf(data = MEX_dis) +
+  geom_sf(data = CAN_dis) +
+  gghighlight::gghighlight(dist_to_mex <= 100) +
+  gghighlight::gghighlight(dist_to_can <= 100) +
+  ggrepel::geom_label_repel(data = MC_l_cities,
+                            aes(label = city.x, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 3) +
+  labs(title = "Large Cities Near the Canada&Mexico Boundary", 
+       x = "Longitude", 
+       y = "Latitude",
+       caption = "based on https://simplemaps.com/data/us-cities") +
+  theme_gray()
+
+```
+
+
+
+
+
+
+
+```{r}
+total_pop = border_dis %>%
+  mutate(totalpop = sum(population)) %>%
+  select(id, totalpop) %>%
+  st_drop_geometry()
+
+
+danger_zone = border_dis %>%
+  filter(dist_to_border <= 160) %>%
+  mutate(danger_pop = sum(population)) %>%
+  left_join(total_pop, by = "id") 
+
+numberofcity = length(danger_zone$city)
+
+```
+
+The number of city in this 100 mile zone is `r numberofcity`
+
+```{r}
+stat_zone = danger_zone %>%  
+  mutate(number = numberofcity) %>%
+  select(number, danger_pop, totalpop) %>%
+  st_drop_geometry() %>%
+  mutate(percent = danger_pop / totalpop) %>%
+  select(number, danger_pop, percent) %>%
+  head(1)
+
+knitr::kable(stat_zone,
+             caption = "ACLU Estimate Is True",
+             col.names = c("Cities Number", "Population In the Zone", "Percentage of Total Population"))
+
+
+big_city_national = danger_zone %>%
+  slice_max(population, n = 10)
+
+bigcitynational = big_city_national %>%
+  select(id) %>%
+  st_drop_geometry()
+
+big_city_state = danger_zone %>%
+  group_by(state_id) %>%
+  slice_max(population, n = 1) %>%
+  anti_join(bigcitynational, by = "id")
+
+
+ggplot() +
+  geom_sf(data = state_b) +
+  geom_sf(data = border_dis, aes(col = dist_to_border)) +
+  gghighlight::gghighlight(dist_to_border <= 100) +
+  scale_color_gradient(low = "darkred", high = "orange") +
+  ggrepel::geom_label_repel(data = big_city_national,
+                            aes(label = city, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 5) +
+  ggrepel::geom_label_repel(data = big_city_state,
+                            aes(label = city, geometry = geometry),
+                            stat = "sf_coordinates",
+                            size = 2) +
+  labs(title = "Large Cities in the Danger Zone", 
+       x = "Longitude", 
+       y = "Latitude",
+       caption = "based on https://simplemaps.com/data/us-cities") +
+  theme_gray()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
