@@ -191,38 +191,23 @@ ggplot() +
        caption = "based on https://simplemaps.com/data/us-cities") +
   theme_gray()
 
-M_cities =  MEX_dis %>%
-  filter(dist_to_mex <= 100) %>%
-  st_drop_geometry() %>%
-  select(id)
-
-C_cities = CAN_dis %>%
-  filter(dist_to_can <= 100) %>%
-  st_drop_geometry() %>%
-  select(id)
-
-city.name = full_join(M_cities, C_cities) %>%
-  select(id.x = id)
-
 
 MC_cities = st_join(MEX_dis, CAN_dis, by = "city") %>%
-  right_join(city.name, by = "id.x") 
-  
+  mutate(equidist = abs(dist_to_mex - dist_to_can))
 
 MC_l_cities = MC_cities %>%
+  filter(equidist <= 100) %>%
   slice_max(population.x, n = 5)
 
 ggplot() +
   geom_sf(data = state_b) +
-  geom_sf(data = MEX_dis) +
-  geom_sf(data = CAN_dis) +
-  gghighlight::gghighlight(dist_to_mex <= 100) +
-  gghighlight::gghighlight(dist_to_can <= 100) +
+  geom_sf(data = MC_cities, aes(col = equidist)) +
+  gghighlight::gghighlight(equidist <= 100) +
   ggrepel::geom_label_repel(data = MC_l_cities,
                             aes(label = city.x, geometry = geometry),
                             stat = "sf_coordinates",
                             size = 3) +
-  labs(title = "Large Cities Near the Canada&Mexico Boundary", 
+  labs(title = "Large Cities Equally Fartherst to the Canada&Mexico Boundary", 
        x = "Longitude", 
        y = "Latitude",
        caption = "based on https://simplemaps.com/data/us-cities") +
