@@ -147,7 +147,7 @@ knitr::kable(tess_summary,
 
 From the data frame, we can obviously see that voronoi tessellation has roughly equal data of original counties, which maintains the precision of the data and the speed of calculation. Triangulation also has the similar standard deviation and total area, but the number of feature exceeds the original one, that will increase the computation of the data. With the simplify of the feature boundary, square tessellation can still save the number of feature, but the deviation of each area is larger than voronoi and triangulation, which might increase the calculation error in the data computation. Hexagon also has the deviation of each area, but it covers the most geographic data with the least number of feature, which can save calculation time efficiently.
 
-```{r}
+```{r,warning=FALSE}
 
 dam = readxl::read_excel("data/NID2019_U.xlsx") %>%
   filter(!is.na(LATITUDE)) %>%
@@ -201,7 +201,7 @@ As the data shows in plots, both voronoi and triangulation can mostly keep data 
 
 
 
-```{r}
+```{r,warning=FALSE}
 dam2 = readxl::read_excel("data/NID2019_U.xlsx") %>%
   filter(!is.na(LATITUDE)) %>%
   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
@@ -252,7 +252,7 @@ plot_pip(analysis_I, "Irrigation Dams Location") +
 From these plots, I can figure out the relationship between the geographic environment and dams. At the source of Mississippi River System, there are plenty of recreation functional dams, and many national forest and wildlife refuges attracting people to visit. In the middle of the United States, the flood plain of Mississippi meander belts are controlled by many dams for reducing the influence of the flooding. In South and North Dakota, dams can supply resource of water from lakes. California also conducted by water supply dams because the shortage of water. And due to the agriculture in the north west area of America, dams play important roles in irrigation. The distribution of dams follows geographic characteristics in each area, from water sources, land forms, to climates and human activities. Voronoi tessellation amplifies each tile's difference in numbers, but might ignore some small areas' change of numbers. 
 
 
-```{r}
+```{r,warning=FALSE}
 
 Miss = read_sf("data/majorrivers_0_0") %>%
   filter(SYSTEM == "Mississippi")
