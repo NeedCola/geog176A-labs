@@ -1,0 +1,300 @@
+---
+# Chi Zhang
+# 08/26/2020
+# Tesselations, Point-in-Polygon
+---
+
+
+```{r}
+library(tidyverse)
+library(sf)
+library(USAboundaries)
+library(rmapshaper)
+library(readxl)
+library(leaflet)
+
+counties = USAboundaries::us_counties() %>%
+  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
+  st_transform(5070) 
+
+b_counties = counties %>%
+  group_by(state_name) %>%
+  summarise() 
+
+ 
+counties_cen = counties %>%
+  st_centroid() 
+
+ 
+  
+simp_count = counties %>% 
+  st_union() %>%
+  ms_simplify(keep = .025)
+
+ mapview::npts(counties)
+ mapview::npts(simp_count)
+```
+ 
+
+The number of points in the original object is 51976, and the number of points in the simplified object is 81, I removed 51895 points. It efficiently decreases the time of computation. 
+
+
+```{r}
+v_counties = counties_cen %>%
+  st_union() %>%
+  st_voronoi() %>%
+  st_cast() %>%
+  st_sf() %>%
+  mutate(id = 1:n()) %>%
+  st_intersection(simp_count) 
+
+t_counties = counties_cen %>%
+  st_union() %>%
+  st_triangulate() %>%
+  st_cast() %>%
+  st_sf() %>%
+  mutate(id = 1:n()) %>%
+  st_intersection(simp_count)
+
+sq_counties = counties %>%
+  st_make_grid(n = 70) %>%
+  st_sf() %>%
+  mutate(id = 1:n())
+
+
+h_counties = counties %>%
+  st_make_grid(n = 70, square = FALSE) %>%
+  st_sf() %>%
+  mutate(id = 1:n())
+
+
+
+counties_plot = function(tiles, name){
+  
+  ggplot() +
+  geom_sf(data = tiles, col = "navy", fill = "white", size = .2) +
+  theme_void() +
+  labs(title = name,
+       caption = paste("This Tesselation has:", nrow(tiles), "tiles")) +
+  theme(plot.title = element_text(hjust = .5, color = "navy", face = "bold"))
+}
+  
+counties_plot(v_counties, "Voronoi Coverage")
+counties_plot(t_counties, "Triangulation Coverage")
+counties_plot(sq_counties, "Square Coverage")
+counties_plot(h_counties, "Hexegonal Coverage")
+counties_plot(counties, "Original Data")
+```
+
+
+
+```{r}
+
+tess_calcu = function(tess_type, tess_name){
+  
+  tess_type = tess_type %>%
+  mutate(area = st_area(tess_type),
+         area = units::set_units(area, "km^2"),
+         area = units::drop_units(area),
+         total_area = sum(area),
+         m_area = total_area / n(),
+         sd_area = sum(area - m_area /n()) ^ (1/2),
+         number = length(tess_type$id)
+         ) 
+  numberoffearture = length(tess_type$id)
+  
+  tess_name = tess_type %>%
+    mutate(number = numberoffearture, name = tess_name) %>%
+    select(name, number, m_area, sd_area, total_area) %>%
+    st_drop_geometry() %>%
+    head(1)
+  
+  return(tess_name)
+  
+}
+
+original = counties %>%
+  mutate(id = 1:n())
+
+tess_calcu(v_counties, "Voronoi")
+tess_calcu(t_counties, "Triangulation")
+tess_calcu(sq_counties, "Square")
+tess_calcu(h_counties, "Hexegon")
+tess_calcu(original, "Original")
+
+
+tess_summary = bind_rows(tess_calcu(v_counties, "Voronoi"),
+                         tess_calcu(t_counties, "Triangulation"),
+                         tess_calcu(sq_counties, "Square"),
+                         tess_calcu(h_counties, "Hexagon"),
+                         tess_calcu(original, "Original"),
+)
+
+
+knitr::kable(tess_summary,
+             caption = "Summary of Tessellations",
+             col.names = c("Tessellation Type", "Number of Feature", "Mean Area", "Standard Deviation", "Total Area"))
+  
+
+
+
+
+
+
+
+```
+
+
+From the data frame, we can obviously see that voronoi tessellation has roughly equal data of original counties, which maintains the precision of the data and the speed of calculation. Triangulation also has the similar standard deviation and total area, but the number of feature exceeds the original one, that will increase the computation of the data. With the simplify of the feature boundary, square tessellation can still save the number of feature, but the deviation of each area is larger than voronoi and triangulation, which might increase the calculation error in the data computation. Hexagon also has the deviation of each area, but it covers the most geographic data with the least number of feature, which can save calculation time efficiently.
+
+```{r}
+
+dam = readxl::read_excel("data/NID2019_U.xlsx") %>%
+  filter(!is.na(LATITUDE)) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
+  st_transform(5070) %>%
+  select(DAM_NAME = DAM_NAME)
+  
+
+point_in_polygon = function(points, polygon, tess_id){
+  
+  st_join(polygon, points) %>%
+    count(get(tess_id)) 
+  
+
+}  
+
+
+Vor = point_in_polygon(dam, v_counties, "id")
+Tri = point_in_polygon(dam, t_counties, "id")
+Squ = point_in_polygon(dam, sq_counties, "id")
+Hex = point_in_polygon(dam, h_counties, "id")
+Ori = point_in_polygon(dam, original, "id")
+
+plot_pip = function(data, name){
+  
+  ggplot() +
+  geom_sf(data = data, aes(fill = n),col = NA, size = .2) +
+#  scale_fill_gradient(low = "white", high = "viridis") +
+  scale_fill_viridis_c() +
+  theme_void() +
+  labs(title = name,
+       caption = paste0(sum(data$n),"locations represented")) +
+  theme(plot.title = element_text(hjust = .5, color = "darkgreen", face = "bold"))
+}
+
+plot_pip(Vor, "Voronoi Coverage")
+plot_pip(Tri, "Triangulation Coverage")
+plot_pip(Squ, "Square Coverage")
+plot_pip(Hex, "Hexagonal Coverage")
+plot_pip(Ori, "Raw Data")
+
+
+
+```
+
+
+As the data shows in plots, both voronoi and triangulation can mostly keep data precision similar to the original geometric information. However, because the area covered in each tiles is large in square and hexagonal coverage, the distribution of the information is distorted, and the deviation appears. I prefer voronoi tessellation for further analysis. It maintains the raw data precision and also has bigger range of data number than triangulation, which has a more distinctive visual change in the plot that can help us in analysis.
+
+
+
+
+
+
+```{r}
+dam2 = readxl::read_excel("data/NID2019_U.xlsx") %>%
+  filter(!is.na(LATITUDE)) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
+  st_transform(5070)
+
+
+dam_purpose = function(data, name){
+  
+  data %>%
+    filter(grepl(name, data$PURPOSES))
+  
+}
+
+Recreation = dam_purpose(dam2, "R")
+Flood_control = dam_purpose(dam2, "C")
+Water_supply = dam_purpose(dam2, "S")
+Irrigation = dam_purpose(dam2, "I")
+
+
+```
+
+I choose recreation, flood control, water supply, and irrigation in the analysis. Four purposes are main functions which most dams have. I am curious that those main functions' relationship with the geographic location. Does the river system influence them, or other geographic features? From the analysis of these purposes the data would give me some hints.
+
+
+
+
+
+```{r}
+analysis_R = point_in_polygon(Recreation, v_counties, "id")
+analysis_C = point_in_polygon(Flood_control, v_counties, "id")
+analysis_S = point_in_polygon(Water_supply, v_counties, "id")
+analysis_I = point_in_polygon(Irrigation, v_counties, "id")
+
+
+
+plot_pip(analysis_R, "Recreation Dams Location") +
+  gghighlight::gghighlight(n > mean(n) + sd(n))
+plot_pip(analysis_C, "Flood Control Dams Location") +
+  gghighlight::gghighlight(n > mean(n) + sd(n))
+plot_pip(analysis_S, "Water Supply Dams Location") +
+  gghighlight::gghighlight(n > mean(n) + sd(n))
+plot_pip(analysis_I, "Irrigation Dams Location") +
+  gghighlight::gghighlight(n > mean(n) + sd(n))
+
+```
+
+
+From these plots, I can figure out the relationship between the geographic environment and dams. At the source of Mississippi River System, there are plenty of recreation functional dams, and many national forest and wildlife refuges attracting people to visit. In the middle of the United States, the flood plain of Mississippi meander belts are controlled by many dams for reducing the influence of the flooding. In South and North Dakota, dams can supply resource of water from lakes. California also conducted by water supply dams because the shortage of water. And due to the agriculture in the north west area of America, dams play important roles in irrigation. The distribution of dams follows geographic characteristics in each area, from water sources, land forms, to climates and human activities. Voronoi tessellation amplifies each tile's difference in numbers, but might ignore some small areas' change of numbers. 
+
+
+```{r}
+
+Miss = read_sf("data/majorrivers_0_0") %>%
+  filter(SYSTEM == "Mississippi")
+
+dam_leaflet = readxl::read_excel("data/NID2019_U.xlsx") %>%
+  filter(!is.na(LATITUDE)) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
+  st_transform(5070) %>%
+  select(dam_name = DAM_NAME, storage = NID_STORAGE, purposes = PURPOSES, year_completed = YEAR_COMPLETED, hazard = HAZARD) %>%
+  filter(hazard == "H")
+  
+DAM = st_join(counties, dam_leaflet) %>%
+  group_by(state_abbr) %>%
+  slice_max(storage, n = 1) %>%
+  select(dam_name, purposes) %>%
+  st_drop_geometry()
+
+DAM_leaflet = left_join(DAM, dam_leaflet)%>%
+  st_as_sf()
+
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB) %>%
+  addCircleMarkers(data = st_transform(DAM_leaflet, 4326), 
+                   color = "red",
+                   radius = ~storage/1500000,
+                   fillOpacity = 1,
+                   stroke = FALSE,
+                   popup = leafpop::popupTable(st_drop_geometry(DAM_leaflet[1:4]),
+                                               feature.id = FALSE, 
+                                               row.numbers = FALSE)) %>%
+  addPolylines(data = Miss)
+  
+
+```
+
+
+
+
+
+
+
+
+
+
