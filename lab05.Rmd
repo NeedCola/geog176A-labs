@@ -99,10 +99,11 @@ flood5 = calc(swi, thresholding5)
 flood = stack(flood1, flood2, flood3, flood4, flood5) %>%
   setNames(c("NDVI", "NDWI", "MNDWI", "WRI", "SWI"))
 
+flood[is.na(flood)] = 0
+
 palette1 = colorRampPalette(c("white", "blue"))
 plot(flood, col = palette1(256))
 
-flood[is.na(flood)] = 0
 
  
 
