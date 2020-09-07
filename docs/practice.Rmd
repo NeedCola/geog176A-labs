@@ -1,149 +1,43 @@
 
-lab04
+lab05
 
 QUESTION 1
 
 ```{r}
+library(raster)
 library(tidyverse)
+library(getlandsat)
 library(sf)
-library(USAboundaries)
-library(rmapshaper)
-
-counties = USAboundaries::us_counties() %>%
-  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
-  st_transform(5070) 
-
-b_counties = counties %>%
-  group_by(state_name) %>%
-  summarise() 
-
- 
-counties_cen = counties %>%
-  st_centroid() 
-
- 
-  
-simp_count = counties %>% 
-  st_union() %>%
-  ms_simplify(keep = .025)
-
- mapview::npts(counties)
- mapview::npts(simp_count)
-
-v_counties = counties_cen %>%
-  st_union() %>%
-  st_voronoi() %>%
-  st_cast() %>%
-  st_sf() %>%
-  mutate(id = 1:n()) %>%
-  st_intersection(simp_count) 
-  
+library(mapview)
+library(osmdata)
 
 
-t_counties = counties_cen %>%
-  st_union() %>%
-  st_triangulate() %>%
-  st_cast() %>%
-  st_sf() %>%
-  mutate(id = 1:n()) %>%
-  st_intersection(simp_count)
+bb = read.csv('data/uscities.csv') %>%
+  filter(city == "Palo") %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
+  st_transform(5070) %>%
+  st_buffer(5000) %>%
+  st_bbox() %>%
+  st_as_sfc() %>%
+  st_as_sf()
 
-sq_counties = counties %>%
-  st_make_grid(n = 70) %>%
-  st_sf() %>%
-  mutate(id = 1:n())
+bwgs = st_transform(bb, 4326)
 
+osm = osmdata::opq(bwgs) %>%
+  osmdata::add_osm_feature("building") %>%
+  osmdata::osmdata_sf()
 
-h_counties = counties %>%
-  st_make_grid(n = 70, square = FALSE) %>%
-  st_sf() %>%
-  mutate(id = 1:n())
+mapview(osm$osm_polygons)
 
 
-
-counties_plot = function(tiles, name){
-  
-  ggplot() +
-  geom_sf(data = tiles, col = "navy", fill = "white", size = .2) +
-  theme_void() +
-  labs(title = name,
-       caption = paste("This Tesselation has:", nrow(tiles), "tiles")) +
-  theme(plot.title = element_text(hjust = .5, color = "navy", face = "bold"))
-}
-  
-counties_plot(v_counties, "Voronoi Coverage")
-counties_plot(t_counties, "Triangulation Coverage")
-counties_plot(sq_counties, "Square Coverage")
-counties_plot(h_counties, "Hexegonal Coverage")
 ```
-The number of points in the original object is 51976, and the number of points in the simplified object is 21638, I removed 30338 points. It efficiently decrease the time of computation. 
+
+
 
 QUESTION2
 
 ```{r}
 
-tess_calcu = function(tess_type, tess_name){
-  
-  tess_type = tess_type %>%
-  mutate(area = st_area(tess_type),
-         area = units::set_units(area, "km^2"),
-         area = units::drop_units(area),
-         total_area = sum(area),
-         m_area = total_area / n(),
-         sd_area = sum(area - m_area /n()) ^ (1/2),
-         number = length(tess_type$id)
-         ) 
-  numberoffearture = length(tess_type$id)
-  
-  tess_name = tess_type %>%
-    mutate(number = numberoffearture, name = tess_name) %>%
-    select(name, number, m_area, sd_area, total_area) %>%
-    st_drop_geometry() %>%
-    head(1)
-  
-  return(tess_name)
-  
-}
-
-original = counties %>%
-  mutate(id = 1:n())
-
-tess_summary = bind_rows(tess_calcu(v_counties, "Voronoi"),
-                         tess_calcu(t_counties, "Triangulation"),
-                         tess_calcu(sq_counties, "Square"),
-                         tess_calcu(h_counties, "Hexegon"),
-                         tess_calcu(original, "Original"),
-)
-
-
-knitr::kable(tess_summary,
-             caption = "Summary of Tessellations",
-             col.names = c("Tessellation Type", "Number of Feature", "Mean Area", "Standard Deviation", "Total Area"))
-
-
-```
-
-QUESTION3
-```{r}
-
-dam = readxl::read_excel("data/NID2019_U.xlsx") %>%
-  filter(!is.na(LATITUDE)) %>%
-  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
-  st_transform(5070) %>%
-  select(DAM_NAME = DAM_NAME)
-  
-
-point_in_polygon = function(points, polygon, id){
-  
-  st_join(polygon, points) %>%
-    count(get(id))
-  
-
-  
-}  
-
-
-Vor = point_in_polygon(dam, v_counties, 'id')
 
 
 

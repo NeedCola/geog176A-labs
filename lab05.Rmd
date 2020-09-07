@@ -1,0 +1,210 @@
+---
+# Chi Zhang
+# 09/03/2020
+# Raster&Remote Sensing
+---
+
+
+```{r}
+library(raster)
+library(tidyverse)
+library(getlandsat)
+library(sf)
+library(mapview)
+library(osmdata)
+
+
+bb = read.csv('data/uscities.csv') %>%
+  filter(city == "Palo") %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
+  st_transform(5070) %>%
+  st_buffer(5000) %>%
+  st_bbox() %>%
+  st_as_sfc() %>%
+  st_as_sf()
+
+bbwgs = bb %>%
+  st_transform(4326)
+
+meta = read_csv("data/palo-flood.csv")
+
+files = lsat_scene_files(meta$download_url) %>%
+  filter(grepl(paste0("B", 1:6, ".TIF$", collapse = "|"), file)) %>%
+  arrange(file) %>%
+  pull(file)
+
+st = sapply(files, lsat_image)
+
+s = stack(st) %>%
+  setNames(c(paste0("band", 1:6)))
+
+cropper = bbwgs %>%
+  st_transform(crs(s))
+
+r = crop(s, cropper)
+
+
+```
+The stacked image's dimensions are 7811, 7681, 59996291, 6. The CRS is 4326, The resolution is 30, 30.
+
+The cropped image's dimensions are 340, 346, 117640, 6. The CRS is still 4326. The resolution is 30, 30.
+
+
+```{r}
+par(mfrow = c(2,2))
+
+plotRGB(r, r = 4, g = 3, b = 2, stretch = "lin")
+plotRGB(r, r = 5, g = 4, b = 3, stretch = "lin")
+plotRGB(r, r = 5, g = 6, b = 4, stretch = "hist")
+plotRGB(r, r = 6, g = 5, b = 2, stretxh = "hist")
+
+dev.off()
+
+
+
+
+```
+
+Color stretch will adjust the contrast of plots, showing more obvious data we want.
+
+```{r}
+ndvi = (r$band5 - r$band4) / (r$band5 + r$band4)
+ndwi = (r$band3 - r$band5) / (r$band3 + r$band5)
+mndwi = (r$band3 - r$band6) / (r$band3 + r$band6)
+wri = (r$band3 + r$band4) / (r$band5 + r$band6)
+swi = 1 /(r$band2 - r$band6)^(1/2)
+
+TR = stack(ndvi, ndwi, mndwi, wri, swi) %>%
+  setNames(c(paste0("threshold", 1:5)))
+
+palette = colorRampPalette(c("blue", "white", "red"))
+plot(TR, col = palette(256))
+
+```
+
+In the first plot, NDVI shows the distribution of flood by blue, which is contrast with near vegetation by NIR. NDWI gives clear flood information near the river, but MNDWI and WRI use more blue to contrast the flood area. And SWI uses blue and white filter to highlight the flood situation.
+
+```{r}
+thresholding1 = function(x){ifelse(x <= 0, 1, NA)}
+thresholding2.3 = function(x){ifelse(x >= 0, 1, NA)}
+thresholding4 = function(x){ifelse(x>= 1, 1, NA)}
+thresholding5 = function(x){ifelse(x<= 5, 1, NA)}
+
+flood1 = calc(ndvi, thresholding1)
+flood2 = calc(ndwi, thresholding2.3)
+flood3 = calc(mndwi, thresholding2.3)
+flood4 = calc(wri, thresholding4)
+flood5 = calc(swi, thresholding5)
+
+flood = stack(flood1, flood2, flood3, flood4, flood5) %>%
+  setNames(c("NDVI", "NDWI", "MNDWI", "WRI", "SWI"))
+
+palette1 = colorRampPalette(c("white", "blue"))
+plot(flood, col = palette1(256))
+
+flood[is.na(flood)] = 0
+
+ 
+
+```
+
+```{r}
+set.seed(09062020)
+
+values = getValues(r)
+
+dim(values)
+
+idx = which(!is.na(values))
+v = na.omit(values)
+vs = scale(v)
+
+
+```
+
+From the dimensions of the values, there are 117640 points in 6 raster.
+
+```{r}
+E = kmeans(vs, 12, iter.max = 100)
+
+
+
+values1 = getValues(r$band1)
+v1 = na.omit(values1)
+vs1 = scale(v1)
+
+E1 = kmeans(vs1, 5, iter.max = 100)
+E2 = kmeans(vs1, 15, iter.max = 100)
+E3 = kmeans(vs1, 12, iter.max = 100)
+kmeans_raster = r$band1
+values(kmeans_raster) = E3$cluster
+
+t1 = table(values(flood$NDVI), values(kmeans_raster))
+
+
+t1m = which.max(t1)
+
+
+thresholding6 = function(x){ifelse(x == 4, 1, NA)}
+
+flood6 = calc(kmeans_raster, thresholding6)
+
+Flood = flood %>%
+  addLayer(flood6) %>%
+  setNames(c("NDVI", "NDWI", "MNDWI", "WRI", "SWI", "KMEANS"))
+  
+
+Flood[is.na(Flood)] = 0
+
+plot(Flood)
+```
+
+
+```{r}
+k_table = cellStats(Flood, sum)
+
+knitr::kable(k_table, 
+             caption = "The Number of Flooded Cells",
+             col.names = c("Number of Cells"))
+
+```
+
+
+
+```{r}
+b9 = calc(Flood, sum)
+
+palette1 = colorRampPalette(c("white", "blue"))
+plot(b9, col = palette1(9))
+
+```
+
+```{r}
+Flood1 = b9
+
+thresholding7 = function(x){x[x=0] <- NA; return(x)}
+Flood1 = calc(Flood1, thresholding7)
+
+
+mapview(Flood1)
+
+
+```
+
+Because the resolution of each cells is larger than the given statistics in the raster. So there are some cell values not an even number.
+
+```{r}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
