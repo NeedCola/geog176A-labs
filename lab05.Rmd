@@ -136,7 +136,7 @@ vs1 = scale(v1)
 E1 = kmeans(vs1, 5, iter.max = 100)
 E2 = kmeans(vs1, 15, iter.max = 100)
 E3 = kmeans(vs1, 12, iter.max = 100)
-kmeans_raster = r$band1
+kmeans_raster = flood$NDVI
 values(kmeans_raster) = E3$cluster
 
 t1 = table(values(flood$NDVI), values(kmeans_raster))
