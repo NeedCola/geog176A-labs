@@ -11,6 +11,7 @@ library(tidyverse)
 library(getlandsat)
 library(sf)
 library(mapview)
+library(leaflet)
 
 
 bb = read.csv('data/uscities.csv') %>%
@@ -196,13 +197,16 @@ Because the resolution of each cells is larger than the given statistics in the 
 
 
 ```{r}
-#mapview(bb)
+leaflet()%>%
+  addProviderTiles(providers$CartoDB) %>%
+  addPolygons(data = bbwgs)
 
 sfc = st_sfc(st_point(c(-91.78955, 42.06305)), crs = 4326) %>%
   st_transform(crs(Flood)) 
 
 sf = sfc %>%
   st_as_sf()
+
 
 
 raster::extract(Flood, sf)
