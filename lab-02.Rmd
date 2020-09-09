@@ -1,10 +1,15 @@
----
-# Chi Zhang
-# 08/12/2020
-# COVID-19 Pandemic
----
 
-```{r}
+# Chi Zhang
+### 08/12/2020
+# COVID-19 Pandemic
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+
+```
+
+
+```{r, echo=FALSE}
 library(tidyverse)
 library(knitr)
 library(readxl)

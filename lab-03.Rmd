@@ -1,10 +1,14 @@
----
-# Chi Zhang
-# 08/19/2020
-# Projections, Distance, and Mapping
----
 
-```{r}
+# Chi Zhang
+### 08/19/2020
+# Projections, Distance, and Mapping
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+
+```
+
+```{r, echo=FALSE}
 library(tidyverse)
 library(sf)
 library(units)

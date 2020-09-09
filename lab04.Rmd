@@ -1,18 +1,23 @@
----
+
 # Chi Zhang
-# 08/26/2020
+### 08/26/2020
 # Tesselations, Point-in-Polygon
----
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
 
-```{r}
+```
+
+```{r, echo=FALSE}
 library(tidyverse)
 library(sf)
 library(USAboundaries)
 library(rmapshaper)
 library(readxl)
 library(leaflet)
+```
 
+```{r}
 counties = USAboundaries::us_counties() %>%
   filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>%
   st_transform(5070) 
