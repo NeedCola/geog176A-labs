@@ -1,45 +1,57 @@
 
-lab05
+lab06
 
-QUESTION 1
+
 
 ```{r}
-library(raster)
 library(tidyverse)
-library(getlandsat)
 library(sf)
-library(mapview)
+library(raster)
+library(fasterize)
+library(whitebox)
+
 library(osmdata)
-
-
-bb = read.csv('data/uscities.csv') %>%
-  filter(city == "Palo") %>%
-  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
-  st_transform(5070) %>%
-  st_buffer(5000) %>%
-  st_bbox() %>%
-  st_as_sfc() %>%
-  st_as_sf()
-
-bwgs = st_transform(bb, 4326)
-
-osm = osmdata::opq(bwgs) %>%
-  osmdata::add_osm_feature("building") %>%
-  osmdata::osmdata_sf()
-
-mapview(osm$osm_polygons)
-
-
+library(elevatr)
+library(mapview)
 ```
 
-
-
-QUESTION2
-
 ```{r}
+AOI = read_sf("https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-11119750/basin")
+
+ele = elevatr::get_elev_raster(AOI, z = 13) %>%
+  crop(AOI) 
+  
+ele1 = ele *3.281  
+  
+writeRaster(ele1, "data/basin-boundary.tif", overwrite = TRUE)
+
+basin = raster("data/basin-boundary.tif")
+
+osm1 = osmdata::opq(as.numeric(st_bbox(basin))) %>%
+  add_osm_feature("building") %>%
+  osmdata_sf()
+
+poly = osm1$osm_polygons %>%
+  st_centroid()
+
+railway = osm1 %>%
+  filter(osm1$osm_points, railway)
+
+osm2 = osmdata::opq(as.numeric(st_bbox(basin))) %>%
+  add_osm_feature("waterway", "stream") %>%
+  osmdata_sf()
+
+stream = osm2$osm_lines
+  
+cm1 = crop(basin, poly) %>%
+  mask(poly)
+cm2 = crop(basin, stream) %>%
+  mask(stream)
 
 
-
+plot(basin)
+mapview(cm1)
+mapview(cm2)
 
 ```
 
